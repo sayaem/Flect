@@ -1,0 +1,6 @@
+{
+  "name": "Flect",
+  "description": "Native Android photo editor with adaptive filters that adjust to the individual photograph.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
