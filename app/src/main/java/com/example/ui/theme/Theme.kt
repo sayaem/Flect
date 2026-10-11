@@ -1,7 +1,6 @@
 package com.example.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -11,26 +10,26 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val FlectDarkColorScheme = darkColorScheme(
-    primary = LavenderAccent,
-    onPrimary = ObsidianBackground,
-    primaryContainer = CharcoalSurfaceVariant,
+    primary = AccentViolet,
+    onPrimary = NavyBackground,
+    primaryContainer = SurfaceElevated,
     onPrimaryContainer = TextPrimary,
-    secondary = ElectricBlueAccent,
-    onSecondary = ObsidianBackground,
-    secondaryContainer = CharcoalSurfaceVariant,
+    secondary = AccentBlue,
+    onSecondary = NavyBackground,
+    secondaryContainer = SurfaceHigher,
     onSecondaryContainer = TextPrimary,
-    background = ObsidianBackground,
+    background = NavyBackground,
     onBackground = TextPrimary,
-    surface = CharcoalSurface,
+    surface = SurfaceElevated,
     onSurface = TextPrimary,
-    surfaceVariant = CharcoalSurfaceVariant,
+    surfaceVariant = SurfaceHigher,
     onSurfaceVariant = TextSecondary,
-    outline = CharcoalBorder
+    outline = BorderSubtle
 )
 
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = true, // Flect is dark-first by design
+    darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -39,8 +38,8 @@ fun MyApplicationTheme(
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
-                window.statusBarColor = ObsidianBackground.toArgb()
-                window.navigationBarColor = ObsidianBackground.toArgb()
+                window.statusBarColor = NavyBackground.toArgb()
+                window.navigationBarColor = NavyBackground.toArgb()
                 WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
                 WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
             }

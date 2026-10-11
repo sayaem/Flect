@@ -1,5 +1,6 @@
 package com.example.ui.home
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,33 +23,28 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -58,27 +54,26 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.engine.PresetLibrary
 import com.example.model.FilterPreset
-import com.example.ui.components.SettingsDialog
-import com.example.ui.theme.CharcoalBorder
-import com.example.ui.theme.CharcoalSurface
-import com.example.ui.theme.CharcoalSurfaceVariant
+import com.example.ui.components.FlectLogoMark
+import com.example.ui.theme.AccentBlue
+import com.example.ui.theme.AccentViolet
+import com.example.ui.theme.BorderSubtle
 import com.example.ui.theme.FlectBrandGradient
-import com.example.ui.theme.LavenderAccent
-import com.example.ui.theme.MintHighlight
-import com.example.ui.theme.ObsidianBackground
+import com.example.ui.theme.NavyBackground
+import com.example.ui.theme.SurfaceElevated
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 
 @Composable
 fun HomeScreen(
-    onSelectImageUri: (android.net.Uri) -> Unit,
-    onSelectSampleImage: (isPortrait: Boolean) -> Unit
+    onSelectImageUri: (Uri) -> Unit,
+    onSelectSampleImage: (isPortrait: Boolean) -> Unit,
+    onOpenPhotoPicker: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenMyStyles: () -> Unit
 ) {
-    var showSettings by remember { mutableStateOf(false) }
-
-    // Android Photo Picker
-    val photoPickerLauncher = rememberLauncherForActivityResult(
+    val systemPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
@@ -86,277 +81,287 @@ fun HomeScreen(
         }
     }
 
-    if (showSettings) {
-        SettingsDialog(onDismiss = { showSettings = false })
-    }
+    val favoritePresets = listOf(
+        PresetLibrary.getById("golden_hour") ?: PresetLibrary.allPresets[0],
+        PresetLibrary.getById("cinemood") ?: PresetLibrary.allPresets[2],
+        PresetLibrary.getById("vivid") ?: PresetLibrary.allPresets[7],
+        PresetLibrary.getById("mono") ?: PresetLibrary.allPresets[9]
+    )
 
-    Box(
+    val recentPresets = listOf(
+        PresetLibrary.getById("travel") ?: PresetLibrary.allPresets[11],
+        PresetLibrary.getById("portrait") ?: PresetLibrary.allPresets[10],
+        PresetLibrary.getById("soft_film") ?: PresetLibrary.allPresets[1],
+        PresetLibrary.getById("night") ?: PresetLibrary.allPresets[8]
+    )
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(ObsidianBackground)
+            .background(NavyBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        Column(
+        // 1. Compact Top Bar (Logo + Name + Settings icon)
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Top Bar
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(CharcoalSurfaceVariant)
-                            .border(1.dp, CharcoalBorder, RoundedCornerShape(10.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.flect_app_icon),
-                            contentDescription = "Flect Logo",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "FLECT",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Black,
-                            letterSpacing = 2.sp,
-                            color = TextPrimary
-                        )
-                    )
-                }
-
-                IconButton(
-                    onClick = { showSettings = true },
-                    modifier = Modifier.testTag("settings_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Settings and About",
-                        tint = TextSecondary
-                    )
-                }
-            }
-
-            // Hero Center
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Brand Visual Box
-                Box(
-                    modifier = Modifier
-                        .size(140.dp)
-                        .clip(RoundedCornerShape(32.dp))
-                        .background(CharcoalSurface)
-                        .border(1.dp, CharcoalBorder, RoundedCornerShape(32.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.flect_app_icon),
-                        contentDescription = null,
-                        modifier = Modifier.size(96.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(28.dp))
-
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                FlectLogoMark(size = 28.dp)
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "One tap. Your look.",
-                    style = MaterialTheme.typography.headlineMedium.copy(
+                    text = "Flect",
+                    style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary,
-                        letterSpacing = (-0.5).sp
+                        fontSize = 22.sp
                     )
                 )
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Adaptive filters that intelligently shape to your photo's unique lighting and dynamic range.",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = TextSecondary,
-                        lineHeight = 20.sp
-                    ),
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier
+                    .size(40.dp)
+                    .testTag("settings_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(22.dp)
                 )
+            }
+        }
 
-                Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-                // Primary Action: Edit a Photo
-                Button(
-                    onClick = {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .testTag("pick_photo_button"),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = LavenderAccent,
-                        contentColor = ObsidianBackground
-                    )
-                ) {
+        // 2. Tagline
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "One tap. Your look.",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Normal,
+                    color = TextSecondary,
+                    fontSize = 16.sp
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // 3. Large Prominent "Edit a Photo" Gradient Button
+        Button(
+            onClick = onOpenPhotoPicker,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .testTag("pick_photo_button"),
+            shape = RoundedCornerShape(27.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent,
+                contentColor = TextPrimary
+            ),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(FlectBrandGradient, RoundedCornerShape(27.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.AddPhotoAlternate,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        tint = TextPrimary
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Edit a Photo",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Secondary Action: Instant Sample Photos for immediate evaluation
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { onSelectSampleImage(true) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .testTag("try_sample_portrait_button"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = androidx.compose.ui.graphics.SolidColor(CharcoalBorder)
-                        )
-                    ) {
-                        Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Try Portrait", fontSize = 13.sp)
-                    }
-
-                    OutlinedButton(
-                        onClick = { onSelectSampleImage(false) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .testTag("try_sample_travel_button"),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = androidx.compose.ui.graphics.SolidColor(CharcoalBorder)
-                        )
-                    ) {
-                        Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Try Travel", fontSize = 13.sp)
-                    }
-                }
-            }
-
-            // Bottom Section: Featured Styles showcase + Privacy Guarantee
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "12 ADAPTIVE STYLES",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = TextMuted,
-                            letterSpacing = 1.2.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                    Text(
-                        text = "Golden Hour • CineMood • Film",
-                        style = MaterialTheme.typography.labelSmall.copy(color = TextSecondary)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(PresetLibrary.allPresets.take(6)) { preset ->
-                        PresetPreviewChip(preset = preset)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Privacy Pill
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .background(CharcoalSurface, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = null,
-                        tint = MintHighlight,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Local Processing • No Cloud • Zero Data Collection",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = TextSecondary,
-                            fontSize = 11.sp
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary,
+                            fontSize = 16.sp
                         )
                     )
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Quick demo photo pill row (for instant zero-friction testing)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "Or try demo: ",
+                style = MaterialTheme.typography.labelSmall.copy(color = TextMuted, fontSize = 12.sp),
+                modifier = Modifier.align(Alignment.CenterVertically)
+            )
+            Text(
+                text = "Portrait",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = AccentBlue,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                ),
+                modifier = Modifier
+                    .clickable { onSelectSampleImage(true) }
+                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                    .testTag("try_sample_portrait_button")
+            )
+            Text(text = "•", color = TextMuted, modifier = Modifier.align(Alignment.CenterVertically))
+            Text(
+                text = "Travel",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = AccentViolet,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                ),
+                modifier = Modifier
+                    .clickable { onSelectSampleImage(false) }
+                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                    .testTag("try_sample_travel_button")
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // 4. "Favorite Styles" Section
+        SectionHeader(
+            title = "Favorite Styles",
+            actionText = "See all",
+            onActionClick = onOpenMyStyles
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items(favoritePresets) { preset ->
+                HomeStyleCard(
+                    preset = preset,
+                    isSamplePortrait = preset.id == "golden_hour" || preset.id == "vivid",
+                    onClick = { onSelectSampleImage(preset.id == "golden_hour" || preset.id == "vivid") }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // 5. "Recently Used" Section
+        SectionHeader(
+            title = "Recently Used",
+            actionText = "See all",
+            onActionClick = onOpenMyStyles
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            items(recentPresets) { preset ->
+                HomeStyleCard(
+                    preset = preset,
+                    isSamplePortrait = preset.id == "portrait" || preset.id == "soft_film",
+                    onClick = { onSelectSampleImage(preset.id == "portrait" || preset.id == "soft_film") }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun PresetPreviewChip(preset: FilterPreset) {
-    Box(
-        modifier = Modifier
-            .background(CharcoalSurface, RoundedCornerShape(12.dp))
-            .border(1.dp, CharcoalBorder, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+private fun SectionHeader(
+    title: String,
+    actionText: String,
+    onActionClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text(
-                text = preset.name,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                fontSize = 17.sp
             )
-            Text(
-                text = preset.category.name.lowercase().replaceFirstChar { it.uppercase() },
-                style = MaterialTheme.typography.labelSmall.copy(
-                    color = TextMuted,
-                    fontSize = 10.sp
-                )
+        )
+
+        Text(
+            text = actionText,
+            style = MaterialTheme.typography.bodySmall.copy(
+                color = AccentViolet,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp
+            ),
+            modifier = Modifier
+                .clickable { onActionClick() }
+                .padding(vertical = 4.dp, horizontal = 2.dp)
+        )
+    }
+}
+
+@Composable
+private fun HomeStyleCard(
+    preset: FilterPreset,
+    isSamplePortrait: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(78.dp)
+            .clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(78.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .border(1.dp, BorderSubtle, RoundedCornerShape(12.dp))
+        ) {
+            Image(
+                painter = painterResource(
+                    id = if (isSamplePortrait) R.drawable.sample_portrait else R.drawable.sample_travel
+                ),
+                contentDescription = preset.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
         }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = preset.name,
+            style = MaterialTheme.typography.labelSmall.copy(
+                color = TextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            ),
+            maxLines = 1
+        )
     }
 }

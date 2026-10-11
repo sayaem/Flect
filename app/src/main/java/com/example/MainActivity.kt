@@ -23,19 +23,40 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.editor.EditorScreen
 import com.example.ui.home.HomeScreen
-import com.example.ui.theme.LavenderAccent
+import com.example.ui.picker.PhotoPickerScreen
+import com.example.ui.presets.MyStylesScreen
+import com.example.ui.presets.PresetsLibraryScreen
+import com.example.ui.saveshare.SaveShareScreen
+import com.example.ui.settings.SettingsScreen
+import com.example.ui.splash.SplashScreen
+import com.example.ui.theme.AccentViolet
 import com.example.ui.theme.MyApplicationTheme
-import com.example.ui.theme.ObsidianBackground
+import com.example.ui.theme.NavyBackground
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.EditorUiState
 import com.example.ui.viewmodel.EditorViewModel
+import com.example.ui.viewmodel.ExportState
+
+enum class AppScreen {
+    SPLASH,
+    HOME,
+    PHOTO_PICKER,
+    EDITOR,
+    SAVE_SHARE,
+    PRESETS_LIBRARY,
+    MY_STYLES,
+    SETTINGS
+}
 
 class MainActivity : ComponentActivity() {
 
@@ -47,32 +68,147 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MyApplicationTheme {
+                var currentScreen by remember { mutableStateOf(AppScreen.SPLASH) }
                 val uiState by editorViewModel.uiState.collectAsStateWithLifecycle()
 
-                when (val state = uiState) {
-                    is EditorUiState.Empty -> {
+                when (currentScreen) {
+                    AppScreen.SPLASH -> {
+                        SplashScreen(
+                            onSplashComplete = { currentScreen = AppScreen.HOME }
+                        )
+                    }
+
+                    AppScreen.HOME -> {
                         HomeScreen(
-                            onSelectImageUri = { uri -> editorViewModel.openImage(uri) },
-                            onSelectSampleImage = { isPortrait -> editorViewModel.openSampleImage(isPortrait) }
+                            onSelectImageUri = { uri ->
+                                editorViewModel.openImage(uri)
+                                currentScreen = AppScreen.EDITOR
+                            },
+                            onSelectSampleImage = { isPortrait ->
+                                editorViewModel.openSampleImage(isPortrait)
+                                currentScreen = AppScreen.EDITOR
+                            },
+                            onOpenPhotoPicker = { currentScreen = AppScreen.PHOTO_PICKER },
+                            onOpenSettings = { currentScreen = AppScreen.SETTINGS },
+                            onOpenMyStyles = { currentScreen = AppScreen.MY_STYLES }
                         )
                     }
 
-                    is EditorUiState.Loading -> {
-                        LoadingScreen(message = state.message)
-                    }
-
-                    is EditorUiState.Ready -> {
-                        EditorScreen(
-                            state = state,
-                            viewModel = editorViewModel,
-                            onBack = { editorViewModel.closeEditor() }
+                    AppScreen.PHOTO_PICKER -> {
+                        PhotoPickerScreen(
+                            onSelectImageUri = { uri ->
+                                editorViewModel.openImage(uri)
+                                currentScreen = AppScreen.EDITOR
+                            },
+                            onSelectSampleImage = { isPortrait ->
+                                editorViewModel.openSampleImage(isPortrait)
+                                currentScreen = AppScreen.EDITOR
+                            },
+                            onBack = { currentScreen = AppScreen.HOME }
                         )
                     }
 
-                    is EditorUiState.Error -> {
-                        ErrorScreen(
-                            message = state.message,
-                            onDismiss = { editorViewModel.closeEditor() }
+                    AppScreen.EDITOR -> {
+                        when (val state = uiState) {
+                            is EditorUiState.Loading -> {
+                                LoadingScreen(message = state.message)
+                            }
+
+                            is EditorUiState.Ready -> {
+                                // Automatically navigate to Save & Share when export finishes
+                                if (state.exportState is ExportState.Success) {
+                                    SaveShareScreen(
+                                        savedUri = state.exportState.savedUri,
+                                        shareUri = state.exportState.shareUri,
+                                        renderedBitmap = state.renderedBitmap,
+                                        onBack = {
+                                            editorViewModel.dismissExportState()
+                                            currentScreen = AppScreen.HOME
+                                        },
+                                        onKeepEditing = {
+                                            editorViewModel.dismissExportState()
+                                        }
+                                    )
+                                } else {
+                                    EditorScreen(
+                                        state = state,
+                                        viewModel = editorViewModel,
+                                        onBack = {
+                                            editorViewModel.closeEditor()
+                                            currentScreen = AppScreen.HOME
+                                        }
+                                    )
+                                }
+                            }
+
+                            is EditorUiState.Error -> {
+                                ErrorScreen(
+                                    message = state.message,
+                                    onDismiss = {
+                                        editorViewModel.closeEditor()
+                                        currentScreen = AppScreen.HOME
+                                    }
+                                )
+                            }
+
+                            is EditorUiState.Empty -> {
+                                currentScreen = AppScreen.HOME
+                            }
+                        }
+                    }
+
+                    AppScreen.SAVE_SHARE -> {
+                        val state = uiState as? EditorUiState.Ready
+                        if (state != null && state.exportState is ExportState.Success) {
+                            SaveShareScreen(
+                                savedUri = state.exportState.savedUri,
+                                shareUri = state.exportState.shareUri,
+                                renderedBitmap = state.renderedBitmap,
+                                onBack = {
+                                    editorViewModel.dismissExportState()
+                                    currentScreen = AppScreen.HOME
+                                },
+                                onKeepEditing = {
+                                    editorViewModel.dismissExportState()
+                                    currentScreen = AppScreen.EDITOR
+                                }
+                            )
+                        } else {
+                            currentScreen = AppScreen.HOME
+                        }
+                    }
+
+                    AppScreen.PRESETS_LIBRARY -> {
+                        val readyState = uiState as? EditorUiState.Ready
+                        PresetsLibraryScreen(
+                            favoritePresetIds = readyState?.favoritePresetIds ?: emptySet(),
+                            onToggleFavorite = { editorViewModel.toggleFavorite(it) },
+                            onSelectPreset = { presetId ->
+                                editorViewModel.openSampleImage(true)
+                                editorViewModel.selectPreset(presetId)
+                                currentScreen = AppScreen.EDITOR
+                            },
+                            onBack = { currentScreen = AppScreen.HOME }
+                        )
+                    }
+
+                    AppScreen.MY_STYLES -> {
+                        val readyState = uiState as? EditorUiState.Ready
+                        MyStylesScreen(
+                            favoritePresetIds = readyState?.favoritePresetIds ?: setOf("golden_hour", "cinemood", "vivid", "travel"),
+                            onToggleFavorite = { editorViewModel.toggleFavorite(it) },
+                            onSelectPreset = { presetId ->
+                                editorViewModel.openSampleImage(true)
+                                editorViewModel.selectPreset(presetId)
+                                currentScreen = AppScreen.EDITOR
+                            },
+                            onBack = { currentScreen = AppScreen.HOME }
+                        )
+                    }
+
+                    AppScreen.SETTINGS -> {
+                        SettingsScreen(
+                            onBack = { currentScreen = AppScreen.HOME }
                         )
                     }
                 }
@@ -86,7 +222,7 @@ private fun LoadingScreen(message: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ObsidianBackground)
+            .background(NavyBackground)
             .statusBarsPadding()
             .navigationBarsPadding(),
         contentAlignment = Alignment.Center
@@ -97,9 +233,9 @@ private fun LoadingScreen(message: String) {
             modifier = Modifier.padding(24.dp)
         ) {
             CircularProgressIndicator(
-                color = LavenderAccent,
+                color = AccentViolet,
                 strokeWidth = 3.dp,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(44.dp)
             )
             Spacer(modifier = Modifier.height(20.dp))
             Text(
@@ -115,7 +251,7 @@ private fun ErrorScreen(message: String, onDismiss: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ObsidianBackground)
+            .background(NavyBackground)
             .statusBarsPadding()
             .navigationBarsPadding(),
         contentAlignment = Alignment.Center
@@ -139,8 +275,8 @@ private fun ErrorScreen(message: String, onDismiss: () -> Unit) {
             Button(
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = LavenderAccent,
-                    contentColor = ObsidianBackground
+                    containerColor = AccentViolet,
+                    contentColor = TextPrimary
                 )
             ) {
                 Text("Return to Home")
